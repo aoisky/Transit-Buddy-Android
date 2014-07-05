@@ -1,6 +1,8 @@
 package net.thacg.transitbuddy;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import android.app.Activity;
 import android.app.ActionBar;
@@ -8,6 +10,7 @@ import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.support.v13.app.FragmentPagerAdapter;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.view.ViewPager;
 import android.view.Gravity;
@@ -46,7 +49,9 @@ public class MainActivity extends Activity {
 		// Set up the ViewPager with the sections adapter.
 		mViewPager = (ViewPager) findViewById(R.id.pager);
 		mViewPager.setAdapter(mSectionsPagerAdapter);
-
+		
+		APITestTask task = new APITestTask();
+		task.execute();
 	}
 
 	@Override
@@ -69,6 +74,29 @@ public class MainActivity extends Activity {
 		return super.onOptionsItemSelected(item);
 	}
 
+	
+	private class APITestTask extends AsyncTask<Void, Void, Void>{
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			// TODO Auto-generated method stub
+			APIHandler.getTime();
+			
+			List<Map<String, String> > routeList = APIHandler.getRoutes();
+			for(Map<String, String> route : routeList){
+				for(String routeNode : route.keySet()){
+					
+					if(routeNode.equals("rt")){
+						System.out.println(routeNode + " " + route.get(routeNode));
+						APIHandler.getDirections(route.get(routeNode));
+					}
+				}
+			}
+			return null;
+		}
+		
+	}
+	
 	/**
 	 * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
 	 * one of the sections/tabs/pages.
