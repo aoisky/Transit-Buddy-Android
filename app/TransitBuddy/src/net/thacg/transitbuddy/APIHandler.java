@@ -16,13 +16,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,8 +54,9 @@ import org.xml.sax.SAXException;
 public class APIHandler {
 
 	private static final String LOG_TAG = "APIHandler";
-	//Enter the API key here
-	private static final String API_KEY = "gw3HKRWGMNK4qAnTgJiswZs3W";
+	//!!!Enter the API key here!!!
+	private static final String API_KEY = "";
+	private static final String TRAIN_API_KEY = "";
 	
 	private static final String USER_AGENT = "Mozilla/5.0";
 	
@@ -69,6 +73,134 @@ public class APIHandler {
 	private static final String TRAIN_ARRIVALS_API = "api/1.0/ttarrivals.aspx";
 	
 
+	public static List<Map<String, String>> getTrainArrivals(String mapid, int max){
+		
+		return null;
+	}
+	
+	/**
+	 * Get Prediction Information API
+	 * @param rt
+	 * @param stpidList
+	 * @return List Prediction Info
+	 */
+	public static List<Map<String, String>> getPredictions(String rt, List<String> stpidList){
+		
+		Map<String, String> paramMap = new HashMap<>();
+		paramMap.put("rt", rt);
+		
+		String commaStpid = buildCommaList(stpidList);
+		
+		paramMap.put("stpid", commaStpid);
+		
+		String params = buildParams(paramMap, API_KEY);
+		
+		String xmlResponseStr = apiConnect(BUS_ROOT_URI, GET_PREDICTIONS_API, params);
+		
+		if(xmlResponseStr == null){
+			Log.d(LOG_TAG, "getPredictions: XML Response is null");
+			return null;
+		}
+		
+		Document xmlDoc = parseXML(xmlResponseStr);
+		
+		NodeList nodePredictionList = xmlDoc.getElementsByTagName("prd");
+		List<Map<String, String>> predictionList = null;
+		
+		if(nodePredictionList != null && nodePredictionList.getLength() > 0){
+			int listLength = nodePredictionList.getLength();
+			
+			predictionList = new ArrayList<>();
+			
+			for(int i = 0; i < listLength; i++){
+				Node node;
+				int childNodeLength = nodePredictionList.item(i).getChildNodes().getLength();
+				Map<String, String> predictionInfoMap = new LinkedHashMap<>();
+				for(int j = 0; j < childNodeLength; j++){
+					node = nodePredictionList.item(i).getChildNodes().item(j);
+					if(node != null && !node.getNodeName().equals("#text")){
+						predictionInfoMap.put(node.getNodeName(), node.getTextContent());
+					}
+				}
+				
+				if(predictionInfoMap.size() > 0){
+					predictionList.add(predictionInfoMap);
+				}
+			}
+			
+		}
+		
+		return predictionList;
+	}
+	
+	/**
+	 * Get Stop Information API
+	 * @param rt
+	 * @param dir
+	 * @return List<Map<String, String>> Stop Info Map has keys of stpid, stpnm, lat, lon or null if error occurred
+	 */
+	public static List<Map<String, String>> getStops(String rt, String dir){
+		Map<String, String> paramMap = new HashMap<>();
+		paramMap.put("rt", rt);
+		paramMap.put("dir", dir);
+		
+		String params = buildParams(paramMap, API_KEY);
+		
+		String xmlResponseStr = apiConnect(BUS_ROOT_URI, GET_STOPS_API, params);
+		
+		if(xmlResponseStr == null){
+			Log.d(LOG_TAG, "getStops: XML Response is null");
+			return null;
+		}
+		
+		Document xmlDoc = parseXML(xmlResponseStr);
+		
+		NodeList nodeStopList = xmlDoc.getElementsByTagName("stop");
+		List<Map<String, String>> stopList = null;
+		
+		if(nodeStopList != null && nodeStopList.getLength() > 0){
+			int listLength = nodeStopList.getLength();
+			Node stpidNode;
+			Node stpnmNode;
+			Node latNode;
+			Node lonNode;
+			
+			stopList = new ArrayList<>();
+			
+			for(int i = 0; i < listLength; i++){
+				stpidNode = nodeStopList.item(i).getChildNodes().item(1);
+				stpnmNode = nodeStopList.item(i).getChildNodes().item(3);
+				latNode = nodeStopList.item(i).getChildNodes().item(5);
+				lonNode = nodeStopList.item(i).getChildNodes().item(7);
+				
+				Map<String, String> stopInfoMap = new LinkedHashMap<>();
+				
+				if(stpidNode != null){
+					stopInfoMap.put(stpidNode.getNodeName(), stpidNode.getTextContent());
+				}
+				
+				if(stpnmNode != null){
+					stopInfoMap.put(stpnmNode.getNodeName(), stpnmNode.getTextContent());
+				}
+				
+				if(latNode != null){
+					stopInfoMap.put(latNode.getNodeName(), latNode.getTextContent());
+				}
+				
+				if(lonNode != null){
+					stopInfoMap.put(lonNode.getNodeName(), lonNode.getTextContent());
+				}
+				
+				if(stopInfoMap.size() > 0){
+					stopList.add(stopInfoMap);
+				}
+			}
+			
+		}
+		
+		return stopList;
+	}
+	
 	
 	
 	/**
@@ -103,7 +235,7 @@ public class APIHandler {
 				rtnmNode = nodeRouteList.item(i).getChildNodes().item(3);
 				rtclrNode = nodeRouteList.item(i).getChildNodes().item(5);
 				
-				Map<String, String> routeInfoMap = new HashMap<>();
+				Map<String, String> routeInfoMap = new LinkedHashMap<>();
 				
 				if(rtNode != null){
 					routeInfoMap.put(rtNode.getNodeName(), rtNode.getTextContent());
@@ -123,7 +255,6 @@ public class APIHandler {
 			}
 			
 		}
-		
 		
 		return routeList;
 		
@@ -203,12 +334,7 @@ public class APIHandler {
 		Document xmlDoc = parseXML(xmlResponseStr);
 		
 		Node node = xmlDoc.getElementsByTagName("tm").item(0);
-		
-		String errorMsg = getXmlResponseError(xmlDoc);
-		
-		if(errorMsg != null){
-			Log.d(LOG_TAG, "getTime: Error: " + errorMsg);
-		}
+
 		
 		if(node != null){
 			String tmStr = node.getChildNodes().item(0).getNodeValue();
@@ -249,21 +375,6 @@ public class APIHandler {
 	}
 	
 	
-	private static String getXmlResponseError(Document xmlDoc){
-		Node errorNode = xmlDoc.getElementsByTagName("error").item(0);
-		
-		if(errorNode != null){
-			Node childNode = errorNode.getFirstChild();
-			if(childNode != null){
-				String errorMsg = childNode.getNodeValue();
-				return errorMsg;
-			}
-		}
-		
-		return null;
-		
-	}
-	
 	/**
 	 * Parse a XML String and return a document object
 	 * @param xmlStr
@@ -279,7 +390,7 @@ public class APIHandler {
 			DocumentBuilder xmlBuilder = xmlFactory.newDocumentBuilder();
 			InputSource is = new InputSource(new StringReader(xmlStr));
 			Document doc = xmlBuilder.parse(is);
-			//printElements(doc);
+			printElements(doc);
 			return doc;
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();
@@ -294,7 +405,7 @@ public class APIHandler {
 	
 	private static void printElements(Document doc)
 	{
-	   NodeList nl = doc.getElementsByTagName("route");
+	   NodeList nl = doc.getElementsByTagName("stop");
 	   Node n;
 	   
 	   for (int i=0; i<nl.getLength(); i++)
@@ -302,16 +413,16 @@ public class APIHandler {
 		  
 	      n = nl.item(i);
 	      //System.out.print(n.getNodeName() + " ");
-	      NodeList nl2 = n.getChildNodes();
-	      System.out.print(nl2.item(1).getNodeName() + "  ");
-	      System.out.println(nl2.item(1).getTextContent());
-
-	      System.out.print(nl2.item(3).getNodeName() + "  ");
-	      System.out.println(nl2.item(3).getTextContent());
-	      
-	      System.out.print(nl2.item(5).getNodeName() + "  ");
-	      System.out.println(nl2.item(5).getTextContent());
-	      //for(int j = 0; j < nl2.getLength(); j++){
+			Node node;
+			int childNodeLength = n.getChildNodes().getLength();
+			//Map<String, String> predictionInfoMap = new LinkedHashMap<>();
+			for(int j = 0; j < childNodeLength; j++){
+				node = n.getChildNodes().item(j);
+				if(node != null && !node.getNodeName().equals("#text")){
+					System.out.println(node.getNodeName() + " " + node.getTextContent());
+					//predictionInfoMap.put(node.getNodeName(), node.getTextContent());
+				}
+			}
 	    	  //System.out.print(nl2.item(j).getNodeName() + " ");
 	    	  //System.out.println(nl2.item(j).getTextContent() + " ");
 	      //}
@@ -319,6 +430,35 @@ public class APIHandler {
 	   }
 	 
 	   System.out.println();
+	}
+	
+	/**
+	 * Build a comma-separated String from a list
+	 * @param params
+	 * @return comma-separated String 
+	 */
+	private static String buildCommaList(List<String> params){
+		
+		if(params == null || params.size() == 0){
+			return null;
+		}
+		
+		StringBuilder sb = new StringBuilder();
+		
+		int count = 0;
+		int length = params.size();
+		
+		for(String param : params){
+			count++;
+			sb.append(param);
+			if(count != length){
+				sb.append(",");
+			}
+			
+		}
+		
+		return sb.toString();
+		
 	}
 	
 	/**
@@ -348,7 +488,11 @@ public class APIHandler {
 				count++;
 				sb.append(param);
 				sb.append("=");
-				sb.append(paramMap.get(param));
+				try {
+					sb.append(URLEncoder.encode(paramMap.get(param), "UTF-8"));
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
 				if(count != length){
 					sb.append("&");
 				}
@@ -375,10 +519,12 @@ public class APIHandler {
 		uriSb.append(rootUri);
 		uriSb.append(apiPath);
 		uriSb.append(parameters);
+
 		
 		try{
 			Log.d(LOG_TAG, "Start connecting to the api: " + apiPath);
 			url = new URL(uriSb.toString());
+			//new URI()
 			HttpURLConnection apiConn = (HttpURLConnection)url.openConnection();
 			apiConn.setReadTimeout(10000);
 			apiConn.setConnectTimeout(10000);
@@ -407,7 +553,6 @@ public class APIHandler {
 			apiConn.disconnect();
 			String xmlResponseStr = sb.toString();
 			
-			Log.d(LOG_TAG, "XML Response: " + xmlResponseStr);
 			
 			return xmlResponseStr;
 			

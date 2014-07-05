@@ -1,5 +1,6 @@
 package net.thacg.transitbuddy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -82,14 +83,16 @@ public class MainActivity extends Activity {
 			// TODO Auto-generated method stub
 			APIHandler.getTime();
 			
-			List<Map<String, String> > routeList = APIHandler.getRoutes();
-			for(Map<String, String> route : routeList){
-				for(String routeNode : route.keySet()){
-					
-					if(routeNode.equals("rt")){
-						System.out.println(routeNode + " " + route.get(routeNode));
-						APIHandler.getDirections(route.get(routeNode));
-					}
+			//List<Map<String, String> > routeList = APIHandler.getRoutes();
+			//List<Map<String, String> > stopList = APIHandler.getStops("2", "Northbound");
+			System.out.println(APIHandler.getTime().toString());
+			ArrayList<String> stpidList = new ArrayList<>();
+			stpidList.add("456");
+			
+			List<Map<String, String> > stopList = APIHandler.getPredictions("20", stpidList);
+			for(Map<String, String> stopInfo : stopList){
+				for(String stopKey : stopInfo.keySet()){
+					System.out.println(stopKey + " " + stopInfo.get(stopKey));
 				}
 			}
 			return null;
